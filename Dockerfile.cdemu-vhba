@@ -1,0 +1,37 @@
+FROM --platform=linux/arm64 debian:13-slim
+
+RUN apt update && apt install -y \
+    ca-certificates \
+    build-essential \
+    git \
+    cmake \
+    pkg-config \
+    bc \
+    kmod \
+    intltool \
+    bison \
+    flex \
+    libglib2.0-dev \
+    libsndfile1-dev \
+    libsamplerate0-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libao-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+RUN git clone https://github.com/cdemu/cdemu.git
+
+# libmirage precisa ser instalado no sistema (nao so compilado)
+# para que o pkg-config o encontre na hora de compilar o cdemu-daemon
+RUN cd cdemu/libmirage && mkdir build && cd build && cmake .. && make -j$(nproc) && make install && ldconfig
+
+RUN cd cdemu/cdemu-daemon && mkdir build && cd build && cmake .. && make -j$(nproc) && make install && ldconfig
+
+RUN cd cdemu/cdemu-client && mkdir build && cd build && cmake .. && make -j$(nproc)
+
+# vhba-module (kernel module) sera compilado em tempo de execucao,
+# via docker run com os headers do host montados como volume,
+# pois depende exatamente da versao do kernel do host.
